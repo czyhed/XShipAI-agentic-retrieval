@@ -1,0 +1,127 @@
+kind: pipeline
+type: docker
+name: agentic-retrieval-deploy
+
+trigger:
+  event:
+    - tag
+
+volumes:
+  - name: docker-sock
+    host:
+      path: /var/run/docker.sock
+
+  - name: deploy-config
+    host:
+      path: /opt/agentic-retrieval
+
+steps:
+  - name: verify
+    image: python:3.12-slim
+    environment:
+      RAG_RETRIEVAL_PROVIDER: pgvector
+      RAG_PG_HOST:
+        from_secret: agentic_retrieval_pg_host
+      RAG_PG_PORT: "5432"
+      RAG_PG_DATABASE:
+        from_secret: agentic_retrieval_pg_database
+      RAG_PG_USER:
+        from_secret: agentic_retrieval_pg_user
+      RAG_PG_PASSWORD:
+        from_secret: agentic_retrieval_pg_password
+      RAG_PG_SCHEMA: rag
+      RAG_PG_VECTOR_TABLE: vector_records_v2_d1024
+      RAG_PG_EMBEDDING_PROFILE_ID: qwen3.7-text-embedding
+      RAG_EMBEDDING_DIMENSIONS: "1024"
+      RAG_PG_BM25_INDEX: vector_records_v2_d1024_bm25_idx
+      RAG_PG_BM25_KEY_FIELD: retrieval_key
+      RAG_RUN_REAL_SMOKE: "1"
+    commands:
+      - apt-get update
+      - apt-get install -y --no-install-recommends ca-certificates git nodejs npm
+      - rm -rf /var/lib/apt/lists/*
+      - python -m pip install --no-cache-dir uv==0.12.3
+      - uv sync --frozen
+      - uv run pytest -q
+      - uv run uvicorn rag_service.main:app --host 127.0.0.1 --port 8090 >/tmp/agentic-retrieval.log 2>&1 &
+      - server_pid=$!
+      - trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
+      - |
+        python - <<'PY'
+        import time
+        from urllib.request import urlopen
+
+        for _ in range(30):
+            try:
+                with urlopen("http://127.0.0.1:8090/openapi.json", timeout=2) as response:
+                    if response.status == 200:
+                        break
+            except Exception:
+                time.sleep(1)
+        else:
+            raise SystemExit("FastAPI did not become ready")
+        PY
+      - AGENTIC_RETRIEVAL_URL=http://127.0.0.1:8090 uv run python scripts/generate_sdk.py
+      - git diff --exit-code -- sdk/index.ts sdk/index.js sdk/openapi.d.ts
+
+  - name: build-image
+    image: docker:24-cli
+    volumes:
+      - name: docker-sock
+        path: /var/run/docker.sock
+    commands:
+      - echo "Building agentic-retrieval:${DRONE_TAG}"
+      - docker build -t agentic-retrieval:${DRONE_TAG} .
+      - docker tag agentic-retrieval:${DRONE_TAG} agentic-retrieval:latest
+
+  - name: deploy
+    image: docker:24-cli
+    environment:
+      RAG_PG_HOST:
+        from_secret: agentic_retrieval_pg_host
+      RAG_PG_DATABASE:
+        from_secret: agentic_retrieval_pg_database
+      RAG_PG_USER:
+        from_secret: agentic_retrieval_pg_user
+      RAG_PG_PASSWORD:
+        from_secret: agentic_retrieval_pg_password
+    volumes:
+      - name: docker-sock
+        path: /var/run/docker.sock
+      - name: deploy-config
+        path: /deploy/agentic-retrieval
+    commands:
+      - test -f /deploy/agentic-retrieval/.env
+      - test -n "$RAG_PG_HOST"
+      - test -n "$RAG_PG_DATABASE"
+      - test -n "$RAG_PG_USER"
+      - test -n "$RAG_PG_PASSWORD"
+      - docker rm -f agentic-retrieval >/dev/null 2>&1 || true
+      - |
+        docker run -d --name agentic-retrieval --restart unless-stopped \
+          --env-file /deploy/agentic-retrieval/.env \
+          -e RAG_RETRIEVAL_PROVIDER=pgvector \
+          -e RAG_PG_HOST="$RAG_PG_HOST" \
+          -e RAG_PG_PORT=5432 \
+          -e RAG_PG_DATABASE="$RAG_PG_DATABASE" \
+          -e RAG_PG_USER="$RAG_PG_USER" \
+          -e RAG_PG_PASSWORD="$RAG_PG_PASSWORD" \
+          -e RAG_PG_SCHEMA=rag \
+          -e RAG_PG_VECTOR_TABLE=vector_records_v2_d1024 \
+          -e RAG_PG_EMBEDDING_PROFILE_ID=qwen3.7-text-embedding \
+          -e RAG_EMBEDDING_DIMENSIONS=1024 \
+          -e RAG_PG_BM25_INDEX=vector_records_v2_d1024_bm25_idx \
+          -e RAG_PG_BM25_KEY_FIELD=retrieval_key \
+          -p 127.0.0.1:8090:8090 \
+          agentic-retrieval:${DRONE_TAG}
+      - |
+        for attempt in $(seq 1 30); do
+          if docker exec agentic-retrieval python -c 'import json, urllib.request; payload=json.load(urllib.request.urlopen("http://127.0.0.1:8090/healthz", timeout=3)); raise SystemExit(0 if payload.get("available") is True else 1)'; then
+            exit 0
+          fi
+          sleep 2
+        done
+        docker logs --tail 100 agentic-retrieval
+        docker inspect --format='{{.State.Status}} {{.State.ExitCode}}' agentic-retrieval
+        echo "agentic-retrieval health check failed"
+        exit 1
