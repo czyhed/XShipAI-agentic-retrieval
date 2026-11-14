@@ -1,0 +1,1196 @@
+<title>AgenticRetrival 工作台手册</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+  /* 设计计划
+     色彩：冷调运维台。钢蓝主色 + 青绿（答案/通过）+ 琥珀（降级/跳过）+ 砖红（失败），中性色带蓝灰倾向。
+     字体：Space Grotesk 负责拉丁与数字，Noto Sans SC 负责正文与中文标题，JetBrains Mono 负责代码位置与状态值。
+     布局：左侧固定目录 + 右侧单栏长文；三个一级目录做成与产品一致的标签页样式；示意线框图复刻三栏工作台。 */
+  :root {
+    --bg: #f3f6f8;
+    --surface: #ffffff;
+    --surface-2: #edf2f5;
+    --fg: #16232d;
+    --muted: #5b6e7c;
+    --line: #d7e0e6;
+    --line-strong: #b7c6d1;
+    --accent: #0e5b83;
+    --accent-fg: #ffffff;
+    --accent-soft: #e3eff6;
+    --teal: #0b7168;
+    --teal-soft: #e2f2ef;
+    --amber: #8c5d00;
+    --amber-soft: #fbf0d8;
+    --red: #a13c3c;
+    --red-soft: #fae8e8;
+    --code-bg: #eef2f5;
+    --header-bg: #0e2736;
+    --header-fg: #eef5f9;
+    --shadow: 0 10px 26px rgba(22, 35, 45, .07);
+    --font-display: "Space Grotesk", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Noto Sans SC", "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    --fs-xs: 11.5px;
+    --fs-sm: 13px;
+    --fs-base: 15px;
+    --fs-md: 17px;
+    --fs-lg: 22px;
+    --fs-xl: 28px;
+    --fs-2xl: 36px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d151b;
+      --surface: #131f27;
+      --surface-2: #18262f;
+      --fg: #e6edf2;
+      --muted: #9aacb8;
+      --line: #26363f;
+      --line-strong: #3b4e59;
+      --accent: #6fb9e0;
+      --accent-fg: #08222f;
+      --accent-soft: #16303e;
+      --teal: #63c9bd;
+      --teal-soft: #123230;
+      --amber: #e0ae5c;
+      --amber-soft: #33280f;
+      --red: #e69191;
+      --red-soft: #3a1f1f;
+      --code-bg: #1a2831;
+      --header-bg: #08121a;
+      --header-fg: #e6edf2;
+      --shadow: 0 10px 26px rgba(0, 0, 0, .35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d151b;
+    --surface: #131f27;
+    --surface-2: #18262f;
+    --fg: #e6edf2;
+    --muted: #9aacb8;
+    --line: #26363f;
+    --line-strong: #3b4e59;
+    --accent: #6fb9e0;
+    --accent-fg: #08222f;
+    --accent-soft: #16303e;
+    --teal: #63c9bd;
+    --teal-soft: #123230;
+    --amber: #e0ae5c;
+    --amber-soft: #33280f;
+    --red: #e69191;
+    --red-soft: #3a1f1f;
+    --code-bg: #1a2831;
+    --header-bg: #08121a;
+    --header-fg: #e6edf2;
+    --shadow: 0 10px 26px rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: var(--fs-base);
+    line-height: 1.78;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto;
+    height: env(safe-area-inset-top, 0px);
+    z-index: 30;
+    background: var(--header-bg);
+  }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  strong { font-weight: 700; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0.08em 0.38em;
+    white-space: nowrap;
+  }
+  .muted { color: var(--muted); }
+
+  /* 顶部 */
+  .topbar {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 20;
+    background: var(--header-bg);
+    color: var(--header-fg);
+    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .18);
+  }
+  .top-inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 13px max(20px, env(safe-area-inset-left, 0px)) 13px max(20px, env(safe-area-inset-right, 0px));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mark {
+    width: 34px; height: 34px; flex: none;
+    display: grid; place-items: center;
+    border: 1.5px solid #7fc0e2;
+    border-radius: 8px;
+    color: #9fd4ee;
+    font: 700 12px var(--font-mono);
+    letter-spacing: .04em;
+    background: rgba(255, 255, 255, .04);
+  }
+  .brand-name { display: block; font: 600 16px var(--font-display); line-height: 1.3; }
+  .brand-sub { display: block; font-size: 11.5px; color: #b8cfdd; line-height: 1.5; }
+  .nav { display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; }
+  .nav a {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: #cbdeea;
+    text-decoration: none;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .nav a:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+  .nav a:focus-visible { outline-color: #9fd4ee; }
+
+  .shell {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 30px max(20px, env(safe-area-inset-left, 0px)) 72px max(20px, env(safe-area-inset-right, 0px));
+  }
+  .doc { display: grid; grid-template-columns: 214px minmax(0, 1fr); gap: 54px; align-items: start; }
+  main { min-width: 0; max-width: 900px; }
+
+  /* 目录 */
+  .toc {
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 78px);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+  }
+  .toc-title {
+    font: 600 10.5px var(--font-mono);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+  .toc a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+  }
+  .toc a:hover { color: var(--fg); background: var(--surface-2); }
+  .toc .toc-main a { color: var(--fg); font-weight: 700; }
+  .toc .toc-main a::before { content: ""; }
+  .toc-sep { height: 1px; background: var(--line); margin: 10px 6px; }
+
+  /* 首屏 */
+  .hero { padding: 6px 0 4px; }
+  .eyebrow {
+    font: 600 11px var(--font-mono);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .hero h1 { font-size: var(--fs-2xl); line-height: 1.25; margin: 0 0 14px; }
+  .lede { font-size: var(--fs-md); line-height: 1.8; color: var(--fg); max-width: 40em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip-static {
+    font: 500 11.5px var(--font-mono);
+    color: var(--muted);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+
+  section { scroll-margin-top: 90px; }
+  .sec { border-top: 1px solid var(--line); margin-top: 46px; padding-top: 40px; }
+  .sec-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+  .sec-index {
+    font: 600 11px var(--font-mono);
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 5px;
+    padding: 3px 7px;
+    letter-spacing: .06em;
+  }
+  .sec h2 { font-size: var(--fs-xl); line-height: 1.3; margin: 0; }
+  .sec-sub { color: var(--muted); font-size: var(--fs-sm); margin-bottom: 22px; }
+  h3 { font-size: var(--fs-md); margin: 30px 0 10px; }
+  h4 { font-family: var(--font-body); font-size: 14px; margin: 20px 0 6px; color: var(--fg); }
+  .prose { display: grid; gap: 12px; }
+  .prose p { max-width: 44em; }
+
+  /* 目录标签 */
+  .tablabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 13px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface);
+    font: 700 11.5px var(--font-body);
+    color: var(--accent);
+    letter-spacing: .04em;
+    box-shadow: var(--shadow);
+  }
+
+  /* 控件卡 */
+  .stack { display: grid; gap: 12px; margin: 16px 0; }
+  .control {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: grid;
+    gap: 8px;
+  }
+  .control-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .control-head h3, .control-head h4 { margin: 0; font-size: 15px; font-family: var(--font-display); }
+  .tag {
+    font: 500 10px var(--font-mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 6px;
+    flex: none;
+  }
+  .tag.blue { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .control p { font-size: 14px; }
+  .control .meta { font-size: 12.5px; color: var(--muted); }
+
+  /* 按钮样机 */
+  .specimens { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .specimen {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font: 700 13px var(--font-body);
+  }
+  .specimen.primary { background: var(--accent); color: var(--accent-fg); }
+  .specimen.secondary { background: var(--accent-soft); color: var(--accent); }
+  .specimen.ghost { border: 1px dashed var(--line-strong); color: var(--muted); font-weight: 500; }
+
+  /* 表格 */
+  .tbl-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    margin: 16px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 560px; }
+  th, td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  th {
+    font: 600 10.5px var(--font-mono);
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: 0; }
+  td code { white-space: nowrap; }
+
+  /* 状态标签 */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font: 600 11.5px var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .chip.ok { background: var(--teal-soft); color: var(--teal); }
+  .chip.warn { background: var(--amber-soft); color: var(--amber); }
+  .chip.bad { background: var(--red-soft); color: var(--red); }
+  .chip.neutral { background: var(--surface-2); color: var(--muted); }
+
+  /* 提示 */
+  .note {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+    padding: 13px 16px;
+    font-size: 13.5px;
+    margin: 16px 0;
+  }
+  .note b { color: var(--amber); font-family: var(--font-display); }
+  .note.teal { border-left-color: var(--teal); }
+  .note.teal b { color: var(--teal); }
+
+  /* 图 */
+  figure {
+    margin: 20px 0;
+    padding: 16px 16px 13px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  figure svg { display: block; width: 100%; height: auto; max-width: 100%; }
+  figcaption { font-size: 12.5px; color: var(--muted); line-height: 1.65; margin-top: 10px; }
+
+  /* 线框示意 */
+  .wire {
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+    font-size: 12px;
+  }
+  .wire-top {
+    background: var(--header-bg);
+    color: var(--header-fg);
+    padding: 9px 13px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+  }
+  .wire-top span:last-child { font-family: var(--font-mono); font-size: 10.5px; color: #a9c7d8; }
+  .wire-nav { display: flex; gap: 6px; padding: 8px 10px 0; background: var(--surface-2); }
+  .wire-nav i {
+    display: block;
+    font-style: normal;
+    font-size: 10.5px;
+    padding: 3px 10px;
+    border-radius: 5px 5px 0 0;
+    color: var(--muted);
+    background: transparent;
+  }
+  .wire-nav i.on { background: var(--surface); color: var(--accent); font-weight: 700; }
+  .wire-body {
+    display: grid;
+    grid-template-columns: 0.9fr 1.5fr 0.9fr;
+    gap: 9px;
+    padding: 10px;
+    background: var(--surface-2);
+  }
+  .wire-col {
+    border: 1px dashed var(--line-strong);
+    border-radius: 7px;
+    background: var(--surface);
+    padding: 9px;
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    min-width: 0;
+  }
+  .wire-label { font: 600 10.5px var(--font-mono); letter-spacing: .05em; color: var(--accent); }
+  .wire-block { height: 20px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); }
+  .wire-block.tall { height: 52px; }
+  .wire-block.blue { background: var(--accent); border-color: var(--accent); }
+  .wire-block.teal { background: var(--teal-soft); border-color: var(--teal); }
+  .wire-foot { font-size: 11.5px; color: var(--muted); padding: 9px 11px; border-top: 1px solid var(--line); background: var(--surface); }
+
+  /* 步骤 */
+  .steps { display: grid; gap: 12px; counter-reset: step; margin: 18px 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 14px;
+    padding: 15px 17px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    counter-increment: step;
+  }
+  .step::before {
+    content: counter(step);
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font: 700 13px var(--font-mono);
+  }
+  .step h4 { margin: 0 0 3px; font-family: var(--font-display); font-size: 14.5px; }
+  .step p { font-size: 13.5px; }
+  .step .say {
+    margin-top: 7px;
+    padding: 8px 11px;
+    border-left: 2px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 5px 5px 0;
+    font-size: 13px;
+    color: var(--fg);
+  }
+  .step .say b { font-family: var(--font-display); color: var(--accent); }
+
+  /* 问答 */
+  .qa { display: grid; gap: 9px; margin: 16px 0; }
+  details {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    padding: 12px 16px;
+  }
+  summary {
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: baseline;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font: 600 15px var(--font-mono); color: var(--accent); flex: none; }
+  details[open] summary::after { content: "−"; }
+  details > p { margin-top: 9px; font-size: 13.5px; color: var(--fg); }
+
+  /* 清单 */
+  .checklist { list-style: none; margin: 14px 0; padding: 0; display: grid; gap: 8px; }
+  .checklist li {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 10px;
+    padding: 11px 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .checklist li::before {
+    content: "";
+    width: 15px; height: 15px;
+    margin-top: 4px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 4px;
+    display: block;
+  }
+
+  .footer {
+    border-top: 1px solid var(--line);
+    margin-top: 52px;
+    padding-top: 18px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 1080px) {
+    .doc { grid-template-columns: 1fr; gap: 0; }
+    .toc { display: none; }
+    main { max-width: 100%; }
+  }
+  @media (max-width: 760px) {
+    .nav { display: none; }
+    .top-inner { padding-top: 11px; padding-bottom: 11px; }
+    .hero h1 { font-size: 27px; }
+    .sec h2 { font-size: 23px; }
+    .wire-body { grid-template-columns: 1fr; }
+    .brand-sub { display: none; }
+    .shell { padding-top: 22px; }
+  }
+</style>
+
+<header class="topbar">
+  <div class="top-inner">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">AR</span>
+      <div>
+        <span class="brand-name">AgenticRetrival 工作台手册</span>
+        <span class="brand-sub">按界面顺序讲解每个控件、按钮与状态</span>
+      </div>
+    </div>
+    <nav class="nav" aria-label="章节导航">
+      <a href="#global">全局</a>
+      <a href="#retrieval">检索</a>
+      <a href="#compare">对比</a>
+      <a href="#evaluation">评测</a>
+      <a href="#linkage">与 Chunk Lab 的分工</a>
+      <a href="#glossary">状态速查</a>
+      <a href="#demo">演示动线</a>
+      <a href="#qa">常见问题</a>
+    </nav>
+  </div>
+</header>
+
+<div class="shell">
+<div class="doc">
+  <aside class="toc" aria-label="目录">
+    <div class="toc-title">本页目录</div>
+    <ol>
+      <li class="toc-main"><a href="#global">全局：打开页面先看什么</a></li>
+      <li class="toc-main"><a href="#retrieval">一、检索</a></li>
+      <li class="toc-main"><a href="#compare">二、对比</a></li>
+      <li class="toc-main"><a href="#evaluation">三、评测</a></li>
+      <li class="toc-sep" aria-hidden="true"></li>
+      <li><a href="#linkage">与 Chunk Lab 的分工</a></li>
+      <li><a href="#glossary">状态速查表</a></li>
+      <li><a href="#demo">线下演示动线</a></li>
+      <li><a href="#qa">常见问题</a></li>
+      <li><a href="#codemap">代码地图</a></li>
+    </ol>
+  </aside>
+
+  <main>
+    <section class="hero" id="global">
+      <p class="eyebrow">界面讲解 · 依据当前仓库代码</p>
+      <h1>从打开页面到跑完一次评测</h1>
+      <p class="lede">这份手册按你实际看到界面的顺序走：顶部状态条、检索、对比、评测。每个按钮背后只有一个后端接口，每个状态背后只有一条服务端判断。文中标了代码位置，演示前可以逐条核对。</p>
+      <div class="chips">
+        <span class="chip-static">单文件前端，无构建</span>
+        <span class="chip-static">只读 PGVector</span>
+        <span class="chip-static">OpenAPI 契约</span>
+        <span class="chip-static">离线评测</span>
+      </div>
+    </section>
+
+    <section class="sec" id="global-body" style="border-top:0;margin-top:26px;padding-top:0">
+      <div class="prose">
+        <p>先把最重要的一句话放在前面：<strong>这个工作台本身不检索任何东西。</strong>它是一个单文件 HTML（<code>web/index.html</code>），通过生成的 SDK 调 FastAPI 的四个接口，再把返回的 JSON 画成三栏界面。你在页面上看到的每个数字、每条状态、每个耗时，都是服务端算出来的。</p>
+        <p>所以演示时不要从「界面功能」讲起，从「一次请求流到哪里」讲起，后面所有按钮都会变得顺理成章。</p>
+      </div>
+
+      <figure>
+        <div class="wire" role="img" aria-label="工作台三栏布局示意：左侧是查询与按钮，中间是结果，右侧是处理阶段与引用">
+          <div class="wire-top"><span>AgenticRetrival 检索工作台</span><span>PGVector 可用 · 索引版本</span></div>
+          <div class="wire-nav"><i class="on">检索</i><i>对比</i><i>评测</i></div>
+          <div class="wire-body">
+            <div class="wire-col">
+              <span class="wire-label">① 左栏 · 输入</span>
+              <div class="wire-block"></div>
+              <div class="wire-block"></div>
+              <div class="wire-block"></div>
+              <div class="wire-block blue" style="margin-top:6px"></div>
+              <div class="wire-block teal"></div>
+            </div>
+            <div class="wire-col">
+              <span class="wire-label">② 中栏 · 输出</span>
+              <div class="wire-block" style="height:26px"></div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+                <div class="wire-block"></div><div class="wire-block"></div><div class="wire-block"></div><div class="wire-block"></div>
+              </div>
+              <div class="wire-block tall"></div>
+              <div class="wire-block"></div>
+              <div class="wire-block"></div>
+            </div>
+            <div class="wire-col">
+              <span class="wire-label">③ 右栏 · 过程与证据</span>
+              <div class="wire-block tall"></div>
+              <div class="wire-block tall"></div>
+            </div>
+          </div>
+          <div class="wire-foot">左栏负责「发什么」，中栏负责「结果是什么」，右栏负责「凭什么」。对比与评测页复用同一套面板样式。</div>
+        </div>
+        <figcaption>工作台的三栏骨架。记住这三个问题，后面每个控件都能归到其中一栏。</figcaption>
+      </figure>
+
+      <h3>顶部状态条</h3>
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>品牌区</h4><span class="tag">装饰</span></div>
+          <p>左侧的标记、标题和副标题纯展示，不承载任何操作。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>健康灯与索引版本</h4><span class="tag blue">每次打开只查一次</span></div>
+          <p>页面启动时请求一次 <code>/healthz</code>。返回里的 <code>available</code> 是服务端对数据库的真实探测：表在不在、<code>documents</code> 在不在、关键列齐不齐、向量索引有没有。为真时亮绿点，并显示 <code>indexVersion</code>，形如 <code>pgvector:rag.vector_records_v2_d1024:qwen3.7-text-embedding</code>。</p>
+          <p class="meta">这串索引版本是「库 + 表 + 向量配置」的指纹。演示时指一下它，比嘴上说「连的是正式数据」有说服力。页面只在启动时检查，不会自动重试；数据源修好后要刷新页面。窄屏（小于 760px）会隐藏健康信息，这是样式行为，不是故障。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>四个运行按钮的开关规则</h4><span class="tag blue">关键交互</span></div>
+          <p>运行检索、生成答案、运行四种配置、创建评测任务，这四个按钮共享一套禁用逻辑：<strong>只要正在跑，或者数据源不可用，就全部变灰</strong>（<code>web/index.html:91</code>）。</p>
+          <p class="meta">所以「点不动」只有两种含义：请求还没回来，或者 <code>/healthz</code> 说数据源不可用。没有第三种。</p>
+        </div>
+      </div>
+
+      <figure>
+        <svg viewBox="0 0 940 380" role="img" aria-label="Chunk Lab 离线写入 PostgreSQL 数据表，AgenticRetrival 在线只读查询" style="font-family:var(--font-body)">
+          <defs>
+            <marker id="arrow1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+          </defs>
+          <rect x="20" y="64" width="256" height="240" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"></rect>
+          <rect x="342" y="64" width="256" height="240" rx="10" fill="none" stroke="currentColor" stroke-opacity=".35"></rect>
+          <rect x="664" y="64" width="256" height="240" rx="10" fill="none" style="stroke:var(--accent)"></rect>
+          <text x="40" y="96" font-size="14" font-weight="700" fill="currentColor">Chunk Lab（离线）</text>
+          <text x="362" y="96" font-size="14" font-weight="700" fill="currentColor">PostgreSQL · pgvector</text>
+          <text x="684" y="96" font-size="14" font-weight="700" style="fill:var(--accent)">AgenticRetrival（在线）</text>
+          <g font-size="12.5" fill="currentColor" opacity=".85">
+            <text x="40" y="130">解析文档</text>
+            <text x="40" y="156">切分与人工修订</text>
+            <text x="40" y="182">生成向量（embedding）</text>
+            <text x="40" y="208">建 BM25 索引</text>
+            <text x="40" y="234">发布一次，写入正式表</text>
+            <text x="362" y="130">vector_records_v2_d1024</text>
+            <text x="362" y="156">documents</text>
+            <text x="362" y="182">BM25 索引（retrieval_key）</text>
+            <text x="362" y="208">只读账号</text>
+            <text x="684" y="130">FastAPI：检索 / 答案 / 评测</text>
+            <text x="684" y="156">每次请求开只读事务</text>
+            <text x="684" y="182">不建第二索引</text>
+            <text x="684" y="208">不重新 embedding</text>
+            <text x="684" y="234">浏览器工作台只做展示</text>
+          </g>
+          <line x1="276" y1="184" x2="330" y2="184" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow1)"></line>
+          <line x1="598" y1="184" x2="652" y2="184" style="stroke:var(--accent)" stroke-width="1.8" marker-end="url(#arrow1)"></line>
+          <text x="303" y="150" font-size="11" fill="currentColor" text-anchor="middle" opacity=".8">写入一次</text>
+          <text x="303" y="213" font-size="10.5" fill="currentColor" text-anchor="middle" opacity=".65">数据方向 →</text>
+          <text x="625" y="150" font-size="11" style="fill:var(--accent)" text-anchor="middle">只读查询</text>
+          <text x="625" y="213" font-size="10.5" style="fill:var(--accent)" text-anchor="middle" opacity=".85">每次请求</text>
+          <text x="470" y="340" font-size="11.5" fill="currentColor" text-anchor="middle" opacity=".7">箭头只有从左到右：本服务没有任何写回向量表的路径</text>
+        </svg>
+        <figcaption>离线与在线的边界。Chunk Lab 把知识变成可检索的证据，本服务只负责把证据找出来并用好。</figcaption>
+      </figure>
+
+      <div class="note"><b>只读是代码级的。</b>适配器每次查询都执行 <code>SET TRANSACTION READ ONLY</code>，再发 SQL（<code>rag_service/backend.py:103</code>）。不是靠约定，也不是靠数据库账号权限「应该够用」。</div>
+    </section>
+
+    <section class="sec" id="retrieval">
+      <div class="sec-head"><span class="sec-index">01</span><span class="tablabel">检索</span></div>
+      <h2>一次运行：输入、结果、过程</h2>
+      <p class="sec-sub">这一页回答两个问题：这段数据能不能被召回？答案能不能被证据支撑？</p>
+
+      <div class="prose">
+        <p>检索页是默认页，也是唯一同时暴露「候选」和「答案」两条路径的地方。左栏收集输入，中栏放结果，右栏放过程与证据。先把左栏六个控件讲清楚，按钮的行为就不用背了。</p>
+      </div>
+
+      <h3>左栏：一次运行的输入</h3>
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>查询</h4><span class="tag">输入框</span></div>
+          <p>默认值 <code>USB-C 快充</code> 只是演示占位，没有任何业务预填。上限 2000 字符，右下角实时计数。这里输入什么，服务端就把它当原始 query；是否扩展取决于下面的「查询改写」。</p>
+          <p class="meta">页面没有表单提交逻辑，按回车不会触发检索，必须点按钮。演示时先把这一点说清楚，能避免观众下意识敲回车。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>配置</h4><span class="tag">下拉 · 四个注册项</span></div>
+          <p>四个配置在服务端注册（<code>rag_service/pipeline.py:17</code>），不能自定义组合。高级覆盖项只能改参数，改不了注册表。</p>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>配置</th><th>实际做什么</th><th>演示时的说法</th></tr></thead>
+              <tbody>
+                <tr><td>仅 Dense</td><td>只走向量相似度召回</td><td>语义相近、字面不同也能找到</td></tr>
+                <tr><td>仅 BM25</td><td>只走全文关键词召回</td><td>型号、专有名词、精确词更稳</td></tr>
+                <tr><td>Hybrid 混合</td><td>两路都跑，再用 RRF 合并</td><td>默认配置，兼顾语义与关键词</td></tr>
+                <tr><td>Hybrid + Rerank</td><td>混合结果再调一次外部精排模型</td><td>多一个可选环节，不是必然更好</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="meta">融合用的是 Reciprocal Rank Fusion：每路按名次贡献 <code>1/(k+名次)</code>，k 默认 60。它只看排名，不把 Dense 的余弦分和 BM25 的分数直接相加——两路分值量纲不同，混加没有意义。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>TopK</h4><span class="tag">输入框 · 1 到 100</span></div>
+          <p>最终展示多少条。注意它不是每路的召回上限：单路召回默认取 <code>max(TopK, 20)</code> 条（<code>pipeline.py:53</code>），融合后再截断到 TopK。</p>
+          <p class="meta">页面的高级覆盖项默认就带着两个 20，并且会被发出去。所以你把 TopK 调到 50、路由 TopK 仍是 20 时，每路还是只有 20 条候选，结果不会凭空变多。演示前把两个路由 TopK 一起调大，才不会翻车。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>查询改写</h4><span class="tag">下拉 · 关闭 / 多查询</span></div>
+          <p>「多查询」不是大模型改写，是确定性字符串扩展：把「多少」换成「数值」、去掉问号，原句保留，最多三条（<code>pipeline.py:25</code>）。服务端会为每条 query 分别召回，再合并去重。</p>
+          <p class="meta">演示时建议直说「这是确定性的字符串扩展，用来验证多 query 链路」。不要说成 AI 改写——代码里没有任何模型调用。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>高级覆盖项</h4><span class="tag">折叠面板</span></div>
+          <p>两个输入：Dense 路由 TopK、BM25 路由 TopK，默认 20。只有非零数字才会被发送。</p>
+          <p class="meta">后端白名单还允许 <code>fusion.topK</code>、<code>fusion.rrfK</code>、<code>rerank.candidateTopK</code>、<code>rerank.outputTopK</code>、<code>rerank.enabled</code>，但界面没有暴露。白名单之外的键会被直接拒绝（<code>pipeline.py:44</code>），页面本身发不出任意参数。</p>
+        </div>
+      </div>
+
+      <h3>两个按钮：检索与答案的分岔</h3>
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>运行检索</h4><span class="tag blue">POST /v1/retrieve</span></div>
+          <div class="specimens"><span class="specimen primary">运行检索</span><span class="muted" style="font-size:12.5px">主按钮 · 蓝底白字</span></div>
+          <p>只做四件事：改写、召回、融合、可选精排，最后排序。它<strong>不生成答案</strong>，返回的是候选证据和每一步的诊断。</p>
+          <p class="meta">点击后中栏先出现骨架屏，请求返回后替换成结果。骨架屏是占位，不是卡死。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>生成答案</h4><span class="tag blue">POST /v1/answers</span></div>
+          <div class="specimens"><span class="specimen secondary">生成答案</span><span class="muted" style="font-size:12.5px">次按钮 · 浅蓝底</span></div>
+          <p>请求体和检索相同，另外带答案模型配置和一份固定的 <code>judge:{enabled:false}</code>。服务端会<strong>再跑一遍同一套检索</strong>，然后把候选做成 Context Pack，过证据门控，调答案模型，最后只接受 Context Pack 里存在的引用编号。</p>
+          <p class="meta">页面从不启用评审（judge）：开关被硬编码为关闭（<code>web/index.html:120</code>）。所以「答案评审」永远是「已跳过」，不是评审服务坏了。</p>
+        </div>
+      </div>
+
+      <figure>
+        <svg viewBox="0 0 940 380" role="img" aria-label="检索路径与答案路径：答案复用同一份候选，再经过证据门控、Context Pack、答案模型和引用校验" style="font-family:var(--font-body)">
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+            <marker id="arrow2t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--teal)"></path>
+            </marker>
+          </defs>
+          <g fill="none" stroke="currentColor" stroke-opacity=".55">
+            <rect x="20" y="58" width="112" height="58" rx="8"></rect>
+            <rect x="160" y="58" width="112" height="58" rx="8"></rect>
+            <rect x="300" y="58" width="150" height="58" rx="8"></rect>
+            <rect x="478" y="58" width="130" height="58" rx="8"></rect>
+            <rect x="636" y="58" width="136" height="58" rx="8" stroke-dasharray="5 4"></rect>
+            <rect x="800" y="58" width="120" height="58" rx="8"></rect>
+          </g>
+          <g font-size="12.5" fill="currentColor" text-anchor="middle">
+            <text x="76" y="83">查询</text><text x="76" y="101" font-size="10" opacity=".65">原始问题</text>
+            <text x="216" y="83">改写</text><text x="216" y="101" font-size="10" opacity=".65">可选，固定替换</text>
+            <text x="375" y="83">召回</text><text x="375" y="101" font-size="10" opacity=".65">Dense ‖ BM25</text>
+            <text x="543" y="83">RRF 融合</text><text x="543" y="101" font-size="10" opacity=".65">只合并名次</text>
+            <text x="704" y="83">Rerank</text><text x="704" y="101" font-size="10" opacity=".65">可选外部服务</text>
+            <text x="860" y="83">候选</text><text x="860" y="101" font-size="10" opacity=".65">排序后的证据</text>
+          </g>
+          <g stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow2)">
+            <line x1="132" y1="87" x2="150" y2="87"></line>
+            <line x1="272" y1="87" x2="290" y2="87"></line>
+            <line x1="450" y1="87" x2="468" y2="87"></line>
+            <line x1="608" y1="87" x2="626" y2="87"></line>
+            <line x1="772" y1="87" x2="790" y2="87"></line>
+          </g>
+          <path d="M860 116 L860 168 L170 168 L170 206" fill="none" style="stroke:var(--teal)" stroke-width="1.8" marker-end="url(#arrow2t)"></path>
+          <text x="520" y="160" font-size="11.5" style="fill:var(--teal)" text-anchor="middle">生成答案时，从同一份候选继续，不重新检索</text>
+          <g fill="none" style="stroke:var(--teal)">
+            <rect x="90" y="210" width="142" height="58" rx="8"></rect>
+            <rect x="258" y="210" width="150" height="58" rx="8"></rect>
+            <rect x="434" y="210" width="126" height="58" rx="8"></rect>
+            <rect x="586" y="210" width="130" height="58" rx="8"></rect>
+            <rect x="742" y="210" width="158" height="58" rx="8"></rect>
+          </g>
+          <g font-size="12.5" fill="currentColor" text-anchor="middle">
+            <text x="161" y="235">证据门控</text><text x="161" y="253" font-size="10" opacity=".65">缺字段直接拒答</text>
+            <text x="333" y="235">Context Pack</text><text x="333" y="253" font-size="10" opacity=".65">编号 S1、S2…</text>
+            <text x="497" y="235">答案模型</text><text x="497" y="253" font-size="10" opacity=".65">只能看这份材料</text>
+            <text x="651" y="235">引用校验</text><text x="651" y="253" font-size="10" opacity=".65">未知编号即拒答</text>
+            <text x="821" y="235">答案 / 拒答</text><text x="821" y="253" font-size="10" opacity=".65">带溯源引用</text>
+          </g>
+          <g style="stroke:var(--teal)" stroke-width="1.6" marker-end="url(#arrow2t)">
+            <line x1="232" y1="239" x2="248" y2="239"></line>
+            <line x1="408" y1="239" x2="424" y2="239"></line>
+            <line x1="560" y1="239" x2="576" y2="239"></line>
+            <line x1="716" y1="239" x2="732" y2="239"></line>
+          </g>
+          <g font-size="11" fill="currentColor" opacity=".72">
+            <rect x="20" y="318" width="14" height="2" fill="currentColor" opacity=".55"></rect>
+            <text x="42" y="322">每次检索都走</text>
+            <rect x="170" y="318" width="14" height="2" fill="none" stroke="currentColor" stroke-dasharray="4 3"></rect>
+            <text x="192" y="322">可选环节</text>
+            <rect x="300" y="318" width="14" height="2" style="fill:var(--teal)"></rect>
+            <text x="322" y="322">仅生成答案时走</text>
+          </g>
+        </svg>
+        <figcaption>上方是检索路径，青色部分是答案路径追加的四个环节。生成答案不是另一次检索，而是在同一份候选上继续加工。</figcaption>
+      </figure>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>对比项</th><th>运行检索</th><th>生成答案</th></tr></thead>
+          <tbody>
+            <tr><td>后端接口</td><td><code>/v1/retrieve</code></td><td><code>/v1/answers</code></td></tr>
+            <tr><td>检索过程</td><td>跑一次完整检索</td><td>服务端再跑同一套检索</td></tr>
+            <tr><td>证据门控</td><td>没有</td><td>有：文档、版本、源块、页码缺一项就拒答</td></tr>
+            <tr><td>输出</td><td>候选列表 + 阶段诊断</td><td>答案 + 引用 + Context Pack + 同一份检索诊断</td></tr>
+            <tr><td>额外调用</td><td>无</td><td>答案模型；评审被页面固定关闭</td></tr>
+            <tr><td>失败时</td><td>状态失败或降级，仍返回候选</td><td>状态失败，<strong>不编答案</strong>，但仍返回 Context Pack 与诊断</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>中栏：结果怎么读</h3>
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>标题与徽章</h4><span class="tag">状态头</span></div>
+          <p>运行检索时显示「检索输出」，生成答案时变成「答案输出」。右侧徽章跟着状态变色：绿为正常或已回答，黄为降级或进行中，红为失败或拒答。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>四个指标</h4><span class="tag blue">先讲这四个</span></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>指标</th><th>检索页显示什么</th><th>答案页显示什么</th></tr></thead>
+              <tbody>
+                <tr><td>状态</td><td>顶层检索状态</td><td>顶层答案状态</td></tr>
+                <tr><td>结果数</td><td>候选条数</td><td>Context Pack 条数</td></tr>
+                <tr><td>置信度</td><td>—（不适用）</td><td>高 / 低</td></tr>
+                <tr><td>总耗时</td><td>整条检索链路</td><td><strong>只有检索段</strong>，不含生成与校验</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="meta">置信度是规则分类，不是概率。服务端目前把高分固定为 0.9、低分为 0.0，阈值版本写着 <code>uncalibrated-v1</code>（<code>rag_service/main.py:128</code>）。演示时不要把它说成「90% 正确率」。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>答案框</h4><span class="tag">只在答案页出现</span></div>
+          <p>只有答案成功（已回答或降级）且有文本时才出现，右上角标是置信度。背景用青绿，是为了和候选列表区分开：这是「结论」，下面的卡片是「依据」。</p>
+          <p class="meta">如果答案是失败或拒答，答案框不出现，但右侧的 Context Pack 和引用区仍然会显示材料。这是故意的：失败也要能复盘。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>结果卡片</h4><span class="tag">核心信息密度最高</span></div>
+          <p>逐项对应代码里的字段：</p>
+          <p><strong>编号与类型</strong>：检索显示 R1、R2；答案显示 S1、S2（服务端生成的引用编号）。类型是文本、图片或表格，图片和表格按普通内容参与排序，没有单独的检索语义。</p>
+          <p><strong>排名与 finalScore</strong>：有精排分就用精排分，否则用 RRF 分。保留四位小数，方便比较相邻名次。</p>
+          <p><strong>正文</strong>：如果命中的是子块，这里展示父块全文，子块原文放在 <code>matchedText</code> 里（<code>backend.py:66</code>）。目的是给答案模型足够的上下文，而不是一句被切断的话。</p>
+          <p><strong>溯源标签</strong>：文档 ID、版本、页码、源块 ID（最多显示两个）。这些全部来自数据库，不是模型生成的。证据门控就是检查这几项齐不齐。</p>
+          <p><strong>分路分数</strong>：dense、bm25、rrf、rerank 的实际数值，是排查排序问题的主要依据。演示时可以指一下「同一份结果在两种召回里各排多少」。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>复制响应</h4><span class="tag">小按钮</span></div>
+          <p>把完整 JSON 复制到剪贴板，适合贴给开发排查。复制失败会提示「剪贴板不可用」，页面内容不受影响。</p>
+        </div>
+      </div>
+
+      <h3>右栏：过程与证据</h3>
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>处理阶段</h4><span class="tag">每步状态与实测耗时</span></div>
+          <p>检索固定六行：查询改写、Dense 检索、BM25 检索、融合排序、Rerank 重排、检索。生成答案会在这六行之后追加：证据门控、Context Pack 组装、答案生成、引用校验、答案评审。</p>
+          <p class="meta">圆点颜色只有三档：通过、正常、已发送是绿；跳过、降级、进行中是黄；失败、拒答是红。耗时都是实际测量的，不是估算。某一行显示 0.0 毫秒，通常意味着这一步根本没执行，而不是执行得极快。</p>
+        </div>
+
+        <div class="control">
+          <div class="control-head"><h4>Context Pack 与引用</h4><span class="tag blue">最有说服力的一栏</span></div>
+          <p>有引用时显示引用，没有引用时显示 Context Pack。每条包含引用编号、原文、文档、版本、页码、源块。这些就是发给答案模型的全部材料，页面没有隐藏任何「模型自己知道的东西」。</p>
+          <p class="meta">证据门控要求文档 ID、版本、源块列表、页码全部存在且页码大于等于 1，缺一项直接拒答（<code>main.py:74</code>）。引用校验则只接受 Context Pack 里出现过的编号；模型编一个 S9 出来，整个回答会被判为无效。</p>
+          <p class="meta">Langfuse 链路链接只在服务端配置了 Langfuse 并成功发送时出现。没出现不代表链路丢了，只代表没接外部观测。</p>
+        </div>
+      </div>
+
+      <div class="note teal"><b>一句话记住检索页：</b>左栏决定「发什么」，中栏回答「是什么」，右栏证明「凭什么」。演示时按这个顺序讲，观众不会掉队。</div>
+    </section>
+
+    <section class="sec" id="compare">
+      <div class="sec-head"><span class="sec-index">02</span><span class="tablabel">对比</span></div>
+      <h2>同一个问题，四种配置并排看</h2>
+      <p class="sec-sub">对比页不生成答案，只横向比较召回差异。</p>
+
+      <div class="prose">
+        <p>这一页只有一个输入和一个按钮。它把同一个查询依次发给四个注册配置，每个配置各跑一次检索，然后把结果放进四张卡。用途是在一分钟内说清「换配置到底改变了什么」，比在检索页反复切下拉更直观。</p>
+      </div>
+
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>查询</h4><span class="tag">输入框</span></div>
+          <p>只影响这一页的四个请求，和检索页的查询互不同步。默认值同样是 <code>USB-C 快充</code>。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>运行四种配置</h4><span class="tag blue">主按钮</span></div>
+          <div class="specimens"><span class="specimen primary">运行四种配置</span></div>
+          <p>固定 TopK 为 5、改写关闭、不带覆盖项，按 Dense、BM25、Hybrid、Hybrid+Rerank 的顺序<strong>依次</strong>调用，不是并发。点击后四张卡先一起变成骨架屏，四个请求全部返回后一次性渲染。</p>
+          <p class="meta">因为顺序执行，最慢的一路决定整体等待时间。演示时如果 BM25 索引缺失，那一张卡会直接显示失败，其他三张照常出结果——这正好能讲「单路失败不会拖垮全局」。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>四张结果卡</h4><span class="tag">只读 · 会话内</span></div>
+          <p>每张卡显示四个信息：结果数（大字）、检索状态、第一条结果的正文预览、最高分。失败时预览位置显示错误文本。</p>
+          <p class="meta">结果只存在当前标签页的内存里，刷新即丢，不落库、不跨设备。每张卡按配置覆盖上一次结果。页面不会自动生成多个答案，也不会把对比结果带进检索页。</p>
+        </div>
+      </div>
+
+      <div class="note"><b>适用场景：</b>解释「为什么同一个问题，换配置后第一条变了」。不适用：证明哪种配置「更好」——那需要评测页的固定问题集和指标。</div>
+    </section>
+
+    <section class="sec" id="evaluation">
+      <div class="sec-head"><span class="sec-index">03</span><span class="tablabel">评测</span></div>
+      <h2>用固定问题集，量化检索质量</h2>
+      <p class="sec-sub">异步创建、轮询取回，不阻塞在线检索。</p>
+
+      <div class="prose">
+        <p>评测页把「感觉还不错」变成可复现的数字。数据集由服务端注册，页面只负责选择、创建和轮询。当前只注册了一个数据集 <code>fake-eval-v1</code>，包含三条查询和硬编码的相关块编号。</p>
+      </div>
+
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>数据集</h4><span class="tag">下拉 · 服务端注册</span></div>
+          <p>页面启动时请求 <code>/v1/evaluation-datasets</code> 填充。当前三条查询是「支持多少瓦快充」「USB-C 接口示意图」「额定功率」，分别对应文本、图片、表格三类内容。</p>
+          <p class="meta">数据集不能在前端新增或编辑。要加数据集得改服务端代码，这是刻意的：避免评测标准被临时修改。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>配置</h4><span class="tag">下拉</span></div>
+          <p>整批评测使用同一个检索配置，不会混合比较。想比较配置，就分别创建两次任务。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>启用 Ragas</h4><span class="tag">复选框</span></div>
+          <p>勾选后，服务端会逐条调用外部 Ragas 服务，评估上下文与答案质量。没配置 <code>RAGAS_API_URL</code> 时，状态是「已跳过」，不会假装有分。</p>
+          <p class="meta">页面表格只显示 Ragas 的<strong>状态</strong>（已发送、已跳过、失败），不展示具体指标值；指标在接口返回体里。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>创建评测任务</h4><span class="tag blue">POST · 202</span></div>
+          <div class="specimens"><span class="specimen primary">创建评测任务</span></div>
+          <p>服务端立即返回一个 runId，任务在后台线程里跑。页面每 100 毫秒查询一次，最多 80 次，也就是约 8 秒。</p>
+          <p class="meta">超过 8 秒还没跑完，页面就不再自动刷新，停留在最后一次状态。需要重新创建任务，或直接查接口。数据源不可用时，创建会返回 503——设计原则是「没有正式数据，就不产出看起来像结果的东西」。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>结果表</h4><span class="tag">指标含义</span></div>
+          <p><strong>Recall@K</strong>：该找到的相关块，找到了多少。<br>
+             <strong>Precision@K</strong>：前 K 条里有多少是相关的。<br>
+             <strong>MRR</strong>：第一条相关结果排在第几，取倒数；越靠前越高。<br>
+             <strong>nDCG@K</strong>：考虑相关性等级（0 到 3）的排序质量，比只看命中更严格。</p>
+          <p class="meta">接口还会返回 P50、P95、P99 延迟、图片与表格命中率、溯源完整率，界面表格没有展示。演示时如果被问「还有没有别的指标」，可以点开接口文档 <code>/docs</code> 补充。</p>
+        </div>
+      </div>
+
+      <div class="note"><b>演示前一定先看这一条：</b>评测的标准答案（qrels）是硬编码的块编号 <code>text-001</code>、<code>image-001</code>、<code>table-001</code>。只有当正式数据表里真的存在这些编号时，指标才有意义；对不上时全为 0，这反映的是数据集与数据不匹配，不是检索坏了。主动说明这一点，比被观众问出来更稳。</div>
+    </section>
+
+    <section class="sec" id="linkage">
+      <div class="sec-head"><span class="sec-index">＋</span></div>
+      <h2>与 Chunk Lab 的分工</h2>
+      <p class="sec-sub">离线负责生产证据，在线负责使用证据。交接点只有一张只读表。</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>环节</th><th>谁负责</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>文档解析、切分、人工修订</td><td>Chunk Lab（离线）</td><td>本服务不参与，也不修改切分语义</td></tr>
+            <tr><td>生成向量 embedding</td><td>Chunk Lab 发布流程</td><td>写一次；本服务绝不重新计算</td></tr>
+            <tr><td>建 BM25 索引</td><td>Chunk Lab 侧迁移脚本</td><td>本服务只做存在性与唯一性检查</td></tr>
+            <tr><td>查询 embedding</td><td>本服务（在线）</td><td>调配置好的同一套向量模型</td></tr>
+            <tr><td>召回、融合、精排</td><td>本服务</td><td>只读 SQL，不建第二索引</td></tr>
+            <tr><td>证据门控、答案、引用校验</td><td>本服务</td><td>证据与引用都由服务端裁决</td></tr>
+            <tr><td>评测与观测</td><td>本服务（离线 / 旁路）</td><td>Ragas、Langfuse、Judge 都是可选</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>三条边界，演示时可以直接说</h3>
+      <div class="stack">
+        <div class="control">
+          <div class="control-head"><h4>数据只写一次</h4><span class="tag">不会双写</span></div>
+          <p>向量由 Chunk Lab 的发布流程写入正式表。本服务不创建第二套索引、不重新 embedding、不写向量表。所以「检索结果和 Chunk Lab 看到的不一致」这类问题，根因通常在发布环节，不在这里。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>连接是只读的</h4><span class="tag">代码级</span></div>
+          <p>每次查询新开连接，先声明只读事务，再执行 SQL。数据库报错会被统一包装成「后端不可用」，既不泄露凭据，也不会悄悄降级成别的实现。</p>
+        </div>
+        <div class="control">
+          <div class="control-head"><h4>入口不带参数</h4><span class="tag">全局检索</span></div>
+          <p>Chunk Lab 只提供一个无参数的新标签页按钮，指向配置好的工作台地址。它不携带任务、记录、向量、过滤条件、密钥或回跳地址。所以这里永远没有「商品范围」「校验任务」这类上下文，也不会从浏览器接收检索记录。</p>
+        </div>
+      </div>
+
+      <div class="note teal"><b>一句话总结边界：</b>Chunk Lab 决定「知识长什么样」，AgenticRetrival 决定「怎么把知识找出来并给出可核对的答案」。两边只通过一张只读表交接。</div>
+    </section>
+
+    <section class="sec" id="glossary">
+      <h2>状态速查表</h2>
+      <p class="sec-sub">界面上的中文标签都能在代码里找到对应状态值。演示时按这张表解释，不会自相矛盾。</p>
+
+      <h3>检索状态</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>界面</th><th>代码值</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip ok">正常</span></td><td><code>ok</code></td><td>所有启用的召回路线都成功</td></tr>
+            <tr><td><span class="chip warn">已降级</span></td><td><code>degraded</code></td><td>部分路线失败，或可选精排不可用，但仍有结果</td></tr>
+            <tr><td><span class="chip bad">失败</span></td><td><code>failed</code></td><td>没有可用的结果，或数据源整体不可用</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>阶段与外部服务</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>界面</th><th>代码值</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip ok">已发送</span> / <span class="chip ok">已通过</span></td><td><code>sent</code> / <code>passed</code></td><td>调用成功，或校验通过</td></tr>
+            <tr><td><span class="chip warn">已跳过</span></td><td><code>skipped</code></td><td>这一步没启用，或服务没配置。不是错误</td></tr>
+            <tr><td><span class="chip warn">已降级</span></td><td><code>degraded</code></td><td>部分成功，结果可用但有损失</td></tr>
+            <tr><td><span class="chip bad">失败</span></td><td><code>failed</code></td><td>调用失败，或结果不可用</td></tr>
+            <tr><td><span class="chip neutral">等待中</span> / 运行中</td><td><code>pending</code> / <code>running</code></td><td>异步任务尚未结束</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>答案状态</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>界面</th><th>代码值</th><th>触发条件</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip ok">已回答</span></td><td><code>answered</code></td><td>证据门控通过，引用校验通过，答案非空</td></tr>
+            <tr><td><span class="chip warn">已降级</span></td><td><code>degraded</code></td><td>有答案和引用，但精排等可选环节不可用</td></tr>
+            <tr><td><span class="chip bad">已拒答</span></td><td><code>abstained</code></td><td>证据不足、溯源不完整、引用编号无效，或模型主动放弃</td></tr>
+            <tr><td><span class="chip bad">失败</span></td><td><code>failed</code></td><td>检索源失败或答案模型调用失败；不产出答案</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note"><b>为什么「已跳过」不算失败：</b>这个服务的设计原则是「明确状态优于静默降级」。可选组件没配置就明说没配置，而不是拿一个相似的东西顶上，让人误以为它工作了。</div>
+    </section>
+
+    <section class="sec" id="demo">
+      <h2>线下演示动线</h2>
+      <p class="sec-sub">建议 8 到 10 分钟。每一步都写了一个可以直接照着说的话头。</p>
+
+      <h3>演示前 5 分钟检查</h3>
+      <ul class="checklist">
+        <li>打开页面，确认右上角 PGVector 是绿点，并记下索引版本。</li>
+        <li>用 Hybrid 跑一次「USB-C 快充」，确认有结果、阶段没有大面积红色。</li>
+        <li>确认服务端是否配置了答案模型。没配时，点「生成答案」会得到失败和「答案模型不可用」，这本身是可讲的显式状态，但你要提前知道。</li>
+        <li>确认是否配置了精排。没配时，Hybrid + Rerank 会显示「Rerank 已跳过、检索已降级」。</li>
+        <li>挑一条页码和源块都齐全的结果，作为「溯源完整」的正面例子。</li>
+        <li>把浏览器缩放到 100%，确认右栏的引用不需要横向滚动。</li>
+      </ul>
+
+      <div class="steps">
+        <div class="step">
+          <div>
+            <h4>开场：先讲边界，再讲界面</h4>
+            <p>指向右上角健康灯和索引版本。说明这个页面不查库，后面的 Python 服务查；服务连的是 Chunk Lab 离线发布出来的只读向量表。</p>
+            <div class="say">「离线负责把知识变成可检索的证据，在线负责只读地找证据。界面上所有数字都来自服务端，浏览器不做任何检索计算。」</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <h4>跑一次检索</h4>
+            <p>配置选 Hybrid，TopK 5，点「运行检索」。按中栏四个指标、右栏阶段耗时、第一条结果的顺序讲。</p>
+            <div class="say">「排序用的是 RRF，只合并名次，不把两路的原始分相加。右栏每一行都是实测耗时，不是估算。」</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <h4>换配置，看差异</h4>
+            <p>切到仅 Dense 再跑一次，指出阶段栏里的 BM25 变成「已跳过」，结果可能变化。条件允许的话再切仅 BM25。</p>
+            <div class="say">「四个配置是服务端注册的，前端改不了组合。这里换的是召回策略，不是换个说法。」</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <h4>讲可选精排</h4>
+            <p>切到 Hybrid + Rerank。已配置时看 rerank 变成「已发送」并重新排序；未配置时是「已跳过」，整体检索标记为「已降级」。</p>
+            <div class="say">「可选服务不可用不会被伪装成成功。降级是明确写在状态里的。」</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <h4>生成答案</h4>
+            <p>点「生成答案」。先看答案框，再看右栏 S1、S2 引用和 Context Pack，最后指一下「答案评审」是跳过。</p>
+            <div class="say">「模型只能引用服务端给它的编号。编一个不存在的编号，整个回答会被判为无效。评审默认关闭，不参与在线判断。」</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <h4>对比页</h4>
+            <p>切到对比，输入同一个问题，点「运行四种配置」。等四张卡出来后，比较结果数和第一条预览。</p>
+            <div class="say">「四种配置各跑一次，结果只在当前会话里，刷新就没了。它的用途是解释差异，不是评优劣。」</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <h4>评测页</h4>
+            <p>选数据集和配置，点「创建评测任务」，看表格出现。主动说明 qrels 与正式数据的匹配问题。</p>
+            <div class="say">「评测是异步的，页面最多等八秒。指标里的 Recall 和 nDCG 衡量召回与排序质量；标准答案是硬编码的，对不上正式数据时指标会很低，这反映数据集而不是检索故障。」</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <h4>收尾</h4>
+            <p>回到架构图，用一句话收束。</p>
+            <div class="say">「Chunk Lab 决定知识长什么样，这里决定怎么找到它，并且让每一个结论都能点回原文。」</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note"><b>三句不要说错的话：</b>多查询改写不是大模型做的；置信度 0.9 不是 90% 正确率；Rerank 显示跳过不是故障。</div>
+    </section>
+
+    <section class="sec" id="qa">
+      <h2>常见问题</h2>
+      <p class="sec-sub">按观众最可能追问的顺序排列。</p>
+
+      <div class="qa">
+        <details>
+          <summary>Rerank 为什么显示「已跳过」？</summary>
+          <p>两种原因。第一，当前配置是 Hybrid，它本身不含精排环节，只有 Hybrid + Rerank 才会调用。第二，配置切过去了，但服务端没设精排地址和密钥，调用被安全地跳过，同时检索状态降为「已降级」。两种情况下都不会伪造精排分数。</p>
+        </details>
+        <details>
+          <summary>为什么所有运行按钮都是灰的？</summary>
+          <p>页面打开时只查一次健康检查。数据源不可用，或者有请求正在跑，四个按钮就一起禁用。修好数据库后需要刷新页面，它不会自动重试。</p>
+        </details>
+        <details>
+          <summary>点「生成答案」直接失败，是不是坏了？</summary>
+          <p>如果原因是「答案模型不可用」，说明服务端没有配置答案模型（地址和密钥）。这是显式失败，不是异常崩溃；检索诊断和 Context Pack 仍然会返回。配置 <code>RAG_ANSWER_PROVIDER</code>、<code>RAG_ANSWER_BASE_URL</code>、<code>RAG_ANSWER_API_KEY</code> 后重启服务即可。</p>
+        </details>
+        <details>
+          <summary>置信度为什么只有高和低，分数为什么固定？</summary>
+          <p>当前阈值是启发式的，版本号明确写着 <code>uncalibrated-v1</code>。服务端在通过引用校验时给 0.9，否则给 0.0，等级按规则划分。它表达的是「证据链是否完整」，不是概率。要真正标定，需要人工标注集。</p>
+        </details>
+        <details>
+          <summary>答案页的「总耗时」为什么比阶段加起来还少？</summary>
+          <p>因为答案页的这个数字取的是检索段耗时，不含答案生成和引用校验。想看完整耗时，把右栏的阶段耗时逐个加起来，或者看接口返回里的各阶段值。</p>
+        </details>
+        <details>
+          <summary>把 TopK 调大，结果为什么没变多？</summary>
+          <p>高级覆盖项里两个路由 TopK 默认是 20，并且会随请求发送。它们限制了每路候选数量。要真正扩大召回，把这两个值一起调大，再调大 TopK。</p>
+        </details>
+        <details>
+          <summary>评测指标全是 0，怎么排查？</summary>
+          <p>先看评测数据集的相关块编号在正式表里是否存在（当前是 <code>text-001</code> 这类固定编号）。对不上时指标必然为 0。其次确认创建任务时数据源可用，且用的是预期的配置。最后才怀疑检索逻辑。</p>
+        </details>
+        <details>
+          <summary>这个页面会修改数据库吗？</summary>
+          <p>不会。服务端每次查询都先声明只读事务，页面也没有任何写入接口。连「重新 embedding」或「重建索引」的路径都不存在。</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="sec" id="codemap">
+      <h2>代码地图</h2>
+      <p class="sec-sub">被追问实现细节时，按这张表定位。</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>文件</th><th>负责什么</th><th>演示时可能被问到</th></tr></thead>
+          <tbody>
+            <tr><td><code>web/index.html</code></td><td>全部界面、按钮状态、渲染逻辑</td><td>按钮为什么变灰、骨架屏是什么</td></tr>
+            <tr><td><code>rag_service/main.py</code></td><td>HTTP 入口与答案编排</td><td>证据门控、引用校验、状态怎么定</td></tr>
+            <tr><td><code>rag_service/pipeline.py</code></td><td>四个配置、改写、召回、RRF、精排</td><td>分数怎么算、为什么用 RRF</td></tr>
+            <tr><td><code>rag_service/backend.py</code></td><td>只读 SQL、父子块、健康检查</td><td>查的哪张表、父子块怎么处理</td></tr>
+            <tr><td><code>rag_service/answering.py</code></td><td>答案模型调用与 JSON 解析</td><td>模型能拿到什么、返回什么格式</td></tr>
+            <tr><td><code>rag_service/evaluation.py</code></td><td>数据集、指标、异步任务</td><td>指标公式、为什么异步</td></tr>
+            <tr><td><code>rag_service/integrations.py</code></td><td>Rerank、Ragas、Langfuse、Judge</td><td>可选服务失败怎么办</td></tr>
+            <tr><td><code>sdk/index.ts</code></td><td>浏览器调用的生成客户端</td><td>前端是不是直连数据库</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note teal"><b>最后一个提醒：</b>这套界面没有登录、没有知识库选择、没有任务上下文。不是没做完，而是产品边界就是这样：一次部署只连一个受控的只读数据源，做全局检索。演示时把它当成一个「可审计的检索实验室」，比当成一个「管理后台」更准确。</div>
+    </section>
+
+    <div class="footer">
+      <p>依据仓库当前代码整理：<code>web/index.html</code>、<code>rag_service/*.py</code>、<code>docs/rag-retrieval-component-v1-spec.md</code>。界面文案与状态值以实际部署版本为准；若线上版本与仓库不一致，以线上行为做演示、以仓库代码做解释。</p>
+    </div>
+  </main>
+</div>
+</div>
