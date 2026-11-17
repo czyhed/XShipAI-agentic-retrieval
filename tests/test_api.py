@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from rag_service.backend import PgVectorAdapter
+from rag_service.backend import PgVectorAdapter, SchemaMissingError
 from rag_service.answering import OpenAICompatibleAnswerGenerator
 from rag_service.integrations import JudgeAdapter, LangfuseAdapter, RagasAdapter, rerank
 from rag_service.models import Candidate, Provenance, RetrieveResponse
@@ -46,6 +46,9 @@ def require_real_pg() -> dict:
     health = client.get("/healthz").json()
     assert health.get("backend") == "pgvector", health
     assert health.get("available") is True, health
+    assert health.get("connectionAvailable") is True, health
+    assert health.get("schemaReady") is True, health
+    assert health.get("dataStatus") in {"ready", "empty_corpus"}, health
     return health
 
 
@@ -393,6 +396,72 @@ def test_health_classifies_pg_auth_failure_without_leaking_error(monkeypatch):
     assert result["available"] is False
     assert result["reason"] == "credentials_invalid"
     assert "secret" not in str(result).lower()
+
+
+def pg_settings() -> SimpleNamespace:
+    return SimpleNamespace(pg_schema="rag", pg_vector_table="vector_records_v2_d1024", embedding_dimensions=1024, pg_embedding_profile_id="profile", pg_host="h", pg_user="u", pg_password="p", pg_database="d", pg_port=5432, pg_sslmode="prefer", pg_connect_timeout_seconds=1, pg_bm25_index="bm25", pg_bm25_key_field="chunk_id")
+
+
+def test_health_separates_connection_from_schema(monkeypatch):
+    adapter = PgVectorAdapter(pg_settings())
+    monkeypatch.setattr(adapter, "_query", lambda sql, params: [{"table_exists": False, "documents_exists": False, "columns_ok": False, "hnsw_ok": False}])
+    result = adapter.health()
+    assert result["available"] is False
+    assert result["connectionAvailable"] is True
+    assert result["schemaReady"] is False
+    assert result["dataStatus"] == "schema_missing"
+    assert result["corpusCount"] == 0
+
+
+def test_health_reports_empty_corpus_as_available(monkeypatch):
+    adapter = PgVectorAdapter(pg_settings())
+    def query(sql, params):
+        if "to_regclass" in sql:
+            return [{"table_exists": True, "documents_exists": True, "columns_ok": True, "hnsw_ok": True}]
+        return [{"count": 0}]
+    monkeypatch.setattr(adapter, "_query", query)
+    result = adapter.health()
+    assert result["available"] is True
+    assert result["connectionAvailable"] is True
+    assert result["schemaReady"] is True
+    assert result["corpusCount"] == 0
+    assert result["dataStatus"] == "empty_corpus"
+
+
+def test_query_maps_undefined_table_to_schema_missing(monkeypatch):
+    adapter = PgVectorAdapter(pg_settings())
+    class UndefinedTable(Exception):
+        sqlstate = "42P01"
+    def failed_connect():
+        raise UndefinedTable("relation does not exist")
+    monkeypatch.setattr(adapter, "_connect", failed_connect)
+    with pytest.raises(SchemaMissingError):
+        adapter._query("SELECT 1", ())
+
+
+def test_retrieve_reports_schema_missing_without_error(monkeypatch):
+    def missing(*args, **kwargs):
+        raise SchemaMissingError("PGVector schema is not initialized")
+    monkeypatch.setattr(main_module.pipeline.backend, "dense_search", missing)
+    monkeypatch.setattr(main_module.pipeline.backend, "lexical_search", missing)
+    response = client.post("/v1/retrieve", json={"query": "USB-C", "profileId": "hybrid"})
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["results"] == []
+    assert payload["statuses"]["source"] == "schema_missing"
+    assert payload["statuses"]["retrieval"] == "empty"
+
+
+def test_answer_reports_schema_missing(monkeypatch):
+    def missing(*args, **kwargs):
+        raise SchemaMissingError("PGVector schema is not initialized")
+    monkeypatch.setattr(main_module.pipeline.backend, "dense_search", missing)
+    monkeypatch.setattr(main_module.pipeline.backend, "lexical_search", missing)
+    response = client.post("/v1/answers", json={"query": "USB-C", "profileId": "hybrid"})
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert "retrieval source schema missing" in payload["reasons"]
 
 
 def test_langfuse_observations_are_sent_and_failures_degrade(monkeypatch):

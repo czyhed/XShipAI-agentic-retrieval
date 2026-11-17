@@ -8,7 +8,7 @@ from typing import Any
 from langchain_core.runnables import RunnableLambda
 
 from .config import Settings
-from .backend import RetrievalBackend
+from .backend import RetrievalBackend, SchemaMissingError
 from .integrations import LangfuseAdapter, rerank, optional_status
 from .models import Candidate, RetrieveRequest, RetrieveResponse
 from .retrieval_math import embed
@@ -83,6 +83,9 @@ class RetrievalPipeline:
                         best_by_chunk[record.chunkId] = (record, score)
                 scored = sorted(best_by_chunk.values(), key=lambda item: (-item[1], item[0].chunkId))[:limit]
                 route_statuses[route] = "ok"
+            except SchemaMissingError:
+                scored = []
+                route_statuses[route] = "empty"
             except RuntimeError:
                 scored = []
                 route_statuses[route] = "failed"
@@ -102,7 +105,9 @@ class RetrievalPipeline:
         fusion_ms = (time.perf_counter() - fusion_started) * 1000
         self.langfuse.observe(trace, "fusion", {"candidateCount": len(ranked)})
         route_failed = any(status == "failed" for status in route_statuses.values())
-        statuses = {"retrieval": "failed" if route_failed and not ranked else ("degraded" if route_failed else "ok"), "rerank": "skipped", "ragas": "skipped", "langfuse": optional_status(self.settings, "langfuse"), **route_statuses}
+        source_missing = any(status == "empty" for status in route_statuses.values())
+        retrieval_status = "failed" if route_failed and not ranked else ("degraded" if route_failed else ("empty" if source_missing else "ok"))
+        statuses = {"retrieval": retrieval_status, "source": "schema_missing" if source_missing else "ok", "rerank": "skipped", "ragas": "skipped", "langfuse": optional_status(self.settings, "langfuse"), **route_statuses}
         rerank_ms = 0.0
         if rerank_enabled:
             rerank_limit = int(override.get("rerank.candidateTopK", len(ranked)))
@@ -131,7 +136,7 @@ class RetrievalPipeline:
             {"name": "query_rewrite", "status": "ok", "latencyMs": rewrite_ms},
             {"name": "dense_retrieval", "status": route_statuses.get("dense", "skipped"), "latencyMs": route_timings.get("dense", 0.0)},
             {"name": "bm25_retrieval", "status": route_statuses.get("bm25", "skipped"), "latencyMs": route_timings.get("bm25", 0.0)},
-            {"name": "fusion", "status": "degraded" if route_failed else "ok", "latencyMs": fusion_ms},
+            {"name": "fusion", "status": "empty" if source_missing else ("degraded" if route_failed else "ok"), "latencyMs": fusion_ms},
             {"name": "rerank", "status": statuses["rerank"], "latencyMs": rerank_ms},
             {"name": "retrieval", "status": statuses["retrieval"], "latencyMs": elapsed},
         ]

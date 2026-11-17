@@ -1,13 +1,13 @@
 from pathlib import Path
 import time
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from .config import settings
 from .answering import build_answer_generator
 from .evaluation import EvaluationRunRegistry, list_datasets
 from .integrations import JudgeAdapter, LangfuseAdapter, RagasAdapter
 from .backend import PgVectorAdapter
-from .models import AnswerRequest, AnswerResponse, Citation, EvaluationRequest, EvaluationRun, RetrieveRequest, RetrieveResponse
+from .models import AnswerRequest, AnswerResponse, Citation, EvaluationRequest, EvaluationRun, EvaluationRunListResponse, RetrieveRequest, RetrieveResponse
 from .pipeline import PROFILES, RetrievalPipeline
 
 app = FastAPI(title="AgenticRetrival Python RAG Service", version="0.1.0")
@@ -78,7 +78,10 @@ def answer(request: AnswerRequest):
     citation_validation_ms = 0.0
     judge_result = {"status": "skipped", "modelVersion": settings.judge_model_version}
     citations: list[Citation] = []
-    if retrieval.statuses.get("retrieval") == "failed":
+    if retrieval.statuses.get("source") == "schema_missing":
+        status, answer_text = "failed", None
+        reasons.append("retrieval source schema missing")
+    elif retrieval.statuses.get("retrieval") == "failed":
         status, answer_text = "failed", None
         reasons.append("retrieval source failed")
     elif not context:
@@ -143,6 +146,11 @@ def evaluation_run(request: EvaluationRequest):
         raise HTTPException(status_code=400, detail=str(error)) from error
     except RuntimeError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.get("/v1/evaluations/runs", response_model=EvaluationRunListResponse)
+def evaluation_run_list(limit: int = Query(default=50, ge=1, le=200)):
+    return {"runs": evaluation_runs.list_runs(limit)}
 
 
 @app.get("/v1/evaluations/runs/{run_id}", response_model=EvaluationRun)

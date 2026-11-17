@@ -96,7 +96,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Evaluation Run List */
+        get: operations["evaluation_run_list_v1_evaluations_runs_get"];
         put?: never;
         /** Evaluation Run */
         post: operations["evaluation_run_v1_evaluations_runs_post"];
@@ -285,6 +286,8 @@ export interface components {
              * @enum {string}
              */
             status: "running" | "completed" | "failed";
+            /** Createdat */
+            createdAt: string;
             /** Providers */
             providers?: {
                 [key: string]: "sent" | "skipped" | "failed" | "degraded";
@@ -307,6 +310,36 @@ export interface components {
             traceId?: string | null;
             /** Traceurl */
             traceUrl?: string | null;
+        };
+        /** EvaluationRunListResponse */
+        EvaluationRunListResponse: {
+            /** Runs */
+            runs: components["schemas"]["EvaluationRunSummary"][];
+        };
+        /** EvaluationRunSummary */
+        EvaluationRunSummary: {
+            /** Runid */
+            runId: string;
+            /** Datasetid */
+            datasetId: string;
+            /**
+             * Profileid
+             * @enum {string}
+             */
+            profileId: "dense-only" | "bm25-only" | "hybrid" | "hybrid-rerank";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "completed" | "failed";
+            /** Createdat */
+            createdAt: string;
+            /** Metrics */
+            metrics?: {
+                [key: string]: unknown;
+            };
+            /** Error */
+            error?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -535,6 +568,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    evaluation_run_list_v1_evaluations_runs_get: {
+        parameters: {
+            query?: {
+                /** Limit */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluationRunListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

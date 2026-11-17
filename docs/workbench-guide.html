@@ -623,13 +623,13 @@
         </div>
         <div class="control">
           <div class="control-head"><h4>健康灯与索引版本</h4><span class="tag blue">每次打开只查一次</span></div>
-          <p>页面启动时请求一次 <code>/healthz</code>。返回里的 <code>available</code> 是服务端对数据库的真实探测：表在不在、<code>documents</code> 在不在、关键列齐不齐、向量索引有没有。为真时亮绿点，并显示 <code>indexVersion</code>，形如 <code>pgvector:rag.vector_records_v2_d1024:qwen3.7-text-embedding</code>。</p>
-          <p class="meta">这串索引版本是「库 + 表 + 向量配置」的指纹。演示时指一下它，比嘴上说「连的是正式数据」有说服力。页面只在启动时检查，不会自动重试；数据源修好后要刷新页面。窄屏（小于 760px）会隐藏健康信息，这是样式行为，不是故障。</p>
+          <p>页面启动时请求一次 <code>/healthz</code>。服务端把状态拆成三个维度：<code>connectionAvailable</code>（数据库连得上、账号有效）、<code>schemaReady</code>（表、<code>documents</code>、关键列、HNSW 索引齐全）、<code>corpusCount</code>（符合检索范围的记录数）。健康灯据此显示三态：绿点「PGVector 可用 · N 条」、黄点「已连接 · 表结构未初始化 / 语料为空」、红点「数据库连接失败」。无论哪一态都会显示 <code>indexVersion</code>，形如 <code>pgvector:rag.vector_records_v2_d1024:qwen-embedding-1024</code>。</p>
+          <p class="meta">这串索引版本是「库 + 表 + 向量配置」的指纹。页面只在启动时检查，不会自动重试；数据源修好后要刷新页面。窄屏（小于 760px）会隐藏健康信息，这是样式行为，不是故障。</p>
         </div>
         <div class="control">
           <div class="control-head"><h4>四个运行按钮的开关规则</h4><span class="tag blue">关键交互</span></div>
-          <p>运行检索、生成答案、运行四种配置、创建评测任务，这四个按钮共享一套禁用逻辑：<strong>只要正在跑，或者数据源不可用，就全部变灰</strong>（<code>web/index.html:91</code>）。</p>
-          <p class="meta">所以「点不动」只有两种含义：请求还没回来，或者 <code>/healthz</code> 说数据源不可用。没有第三种。</p>
+          <p>运行检索、生成答案、运行四种配置、创建评测任务：前三个只在<strong>正在跑或 API 不可达</strong>时变灰；缺表或语料为空时仍然可以点击，接口会返回空结果并在 <code>statuses.source</code> 里写明 <code>schema_missing</code>。创建评测任务额外要求 <code>schemaReady</code>，因为空表上的评测没有意义。</p>
+          <p class="meta">所以「点不动」只有两种含义：请求还没回来，或者 API 进程不可达。缺表、空语料、数据库连接失败都会给出明确提示，而不是禁用按钮。</p>
         </div>
       </div>
 

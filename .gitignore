@@ -40,6 +40,7 @@ build/
 output/
 artifacts/
 var/
+data/
 .workspace/
 .tmp-workspace/
 *.log

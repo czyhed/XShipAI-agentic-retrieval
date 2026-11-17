@@ -112,6 +112,8 @@ steps:
           -e RAG_EMBEDDING_DIMENSIONS=1024 \
           -e RAG_PG_BM25_INDEX=vector_records_v2_d1024_bm25_idx \
           -e RAG_PG_BM25_KEY_FIELD=retrieval_key \
+          -e RAG_EVAL_STORE_DIR=/app/data/evaluation-runs \
+          -v /deploy/agentic-retrieval/eval-runs:/app/data/evaluation-runs \
           -p 127.0.0.1:8090:8090 \
           agentic-retrieval:${DRONE_TAG}
       - |

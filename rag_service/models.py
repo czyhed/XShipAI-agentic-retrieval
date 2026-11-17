@@ -1,5 +1,11 @@
+from datetime import datetime, timezone
 from typing import Any, Literal
 from pydantic import BaseModel, Field, ConfigDict
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
 
 ContentType = Literal["text", "image", "table"]
 ProfileId = Literal["dense-only", "bm25-only", "hybrid", "hybrid-rerank"]
@@ -100,6 +106,7 @@ class EvaluationRun(BaseModel):
     datasetId: str
     profileId: ProfileId
     status: Literal["running", "completed", "failed"]
+    createdAt: str = Field(default_factory=utc_now_iso)
     providers: dict[str, ProviderStatus] = Field(default_factory=dict)
     metrics: dict[str, Any] = Field(default_factory=dict)
     ragas: dict[str, Any] = Field(default_factory=dict)
@@ -107,6 +114,20 @@ class EvaluationRun(BaseModel):
     error: str | None = None
     traceId: str | None = None
     traceUrl: str | None = None
+
+
+class EvaluationRunSummary(BaseModel):
+    runId: str
+    datasetId: str
+    profileId: ProfileId
+    status: Literal["running", "completed", "failed"]
+    createdAt: str
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+
+
+class EvaluationRunListResponse(BaseModel):
+    runs: list[EvaluationRunSummary]
 
 
 class AnswerRequest(RetrieveRequest):

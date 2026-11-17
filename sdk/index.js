@@ -10,6 +10,7 @@ export class AgenticRetrievalClient {
   answer(request) { return this.request('/v1/answers', request); }
   evaluationDatasets() { return this.request('/v1/evaluation-datasets'); }
   evaluationRun(request) { return this.request('/v1/evaluations/runs', request); }
+  evaluationRuns(limit = 50) { return this.request(`/v1/evaluations/runs?limit=${encodeURIComponent(limit)}`); }
   evaluationStatus(runId) { return this.request(`/v1/evaluations/runs/${encodeURIComponent(runId)}`); }
   profiles() { return this.request('/v1/profiles'); }
   health() { return this.request('/healthz'); }

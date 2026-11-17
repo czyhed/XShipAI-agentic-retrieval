@@ -12,7 +12,10 @@ export type AnswerResponse = components['schemas']['AnswerResponse'];
 export type EvaluationDataset = { id: string; name: string; queryCount: number };
 export type EvaluationRun = components['schemas']['EvaluationRun'];
 export type EvaluationResponse = EvaluationRun;
-export type HealthResponse = { ok: boolean; service: string; backend: string; available: boolean; indexVersion?: string; reason?: string };
+export type EvaluationRunSummary = { runId: string; datasetId: string; profileId: ProfileId; status: EvaluationRun['status']; createdAt: string; metrics: Record<string, unknown>; error?: string | null };
+export type EvaluationRunsResponse = { runs: EvaluationRunSummary[] };
+export type DataStatus = 'ready' | 'empty_corpus' | 'schema_missing' | 'unreachable';
+export type HealthResponse = { ok: boolean; service: string; backend: string; available: boolean; connectionAvailable?: boolean; schemaReady?: boolean; corpusCount?: number; corpusCountCapped?: boolean; dataStatus?: DataStatus; indexVersion?: string; reason?: string };
 export type ProfilesResponse = { profiles: Record<string, unknown>[] };
 export type DatasetsResponse = { datasets: EvaluationDataset[] };
 
@@ -27,6 +30,7 @@ export class AgenticRetrievalClient {
   answer(request: AnswerRequest): Promise<AnswerResponse> { return this.request('/v1/answers', request); }
   evaluationDatasets(): Promise<DatasetsResponse> { return this.request('/v1/evaluation-datasets'); }
   evaluationRun(request: EvaluationRequest): Promise<EvaluationResponse> { return this.request('/v1/evaluations/runs', request); }
+  evaluationRuns(limit = 50): Promise<EvaluationRunsResponse> { return this.request(`/v1/evaluations/runs?limit=${encodeURIComponent(limit)}`); }
   evaluationStatus(runId: string): Promise<EvaluationResponse> { return this.request(`/v1/evaluations/runs/${encodeURIComponent(runId)}`); }
   profiles(): Promise<ProfilesResponse> { return this.request('/v1/profiles'); }
   health(): Promise<HealthResponse> { return this.request('/healthz'); }

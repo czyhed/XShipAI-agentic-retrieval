@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load local defaults without overriding explicit process-level configuration.
@@ -72,6 +73,9 @@ class Settings:
     pg_vector_table: str = os.getenv("RAG_PG_VECTOR_TABLE", "vector_records_v2_d1024")
     pg_bm25_index: str = os.getenv("RAG_PG_BM25_INDEX", "vector_records_v2_d1024_bm25_idx")
     pg_bm25_key_field: str = os.getenv("RAG_PG_BM25_KEY_FIELD", "retrieval_key")
+    rag_eval_store_dir: str = os.getenv("RAG_EVAL_STORE_DIR") or str(
+        Path(__file__).resolve().parent.parent / "data" / "evaluation-runs"
+    )
 
 
 settings = Settings()

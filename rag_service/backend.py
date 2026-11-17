@@ -10,6 +10,13 @@ from psycopg.rows import dict_row
 from .models import IndexRecord, Provenance
 
 
+class SchemaMissingError(RuntimeError):
+    """The configured PGVector schema, table, or column is not initialized."""
+
+
+_SCHEMA_ERROR_SQLSTATES = {"42P01", "3F000", "42703"}
+
+
 class RetrievalBackend(Protocol):
     kind: str
     version: str
@@ -104,6 +111,8 @@ class PgVectorAdapter:
                     cursor.execute(sql, params)
                     return list(cursor.fetchall())
         except Exception as error:
+            if getattr(error, "sqlstate", None) in _SCHEMA_ERROR_SQLSTATES:
+                raise SchemaMissingError("PGVector schema is not initialized") from error
             raise RuntimeError("PGVector backend unavailable") from error
 
     def _scope(self) -> tuple[str, list[Any]]:
@@ -142,6 +151,8 @@ class PgVectorAdapter:
         try:
             self._ensure_bm25_ready()
             rows = self._query(sql, (*scope_params, query, limit))
+        except SchemaMissingError:
+            raise
         except RuntimeError as error:
             raise RuntimeError(f"PGVector BM25 index unavailable: {index_name}") from error
         return [(_record(row), float(row.get("score", 0.0))) for row in rows]
@@ -161,6 +172,8 @@ class PgVectorAdapter:
                     WHERE deleted_at IS NULL""",
                 (f"{self.schema}.{index_name}",),
             )
+        except SchemaMissingError:
+            raise
         except RuntimeError as error:
             raise RuntimeError(f"PGVector BM25 index unavailable: {index_name}") from error
         state = rows[0] if rows else {}
@@ -170,25 +183,51 @@ class PgVectorAdapter:
             raise RuntimeError(f"PGVector BM25 key field is not unique: {key_field}")
         self._bm25_ready = True
 
+    def _schema_ready(self) -> bool:
+        required = ("target_id", "target_spu_id", "deleted_at", "embedding_profile_id", "vector_dimensions", "embedding", "source_segments", "source_document_version")
+        placeholders = ",".join("%s" for _ in required)
+        rows = self._query(
+            f"""SELECT
+                to_regclass(%s) IS NOT NULL AS table_exists,
+                to_regclass(%s) IS NOT NULL AS documents_exists,
+                (SELECT count(*) FROM information_schema.columns WHERE table_schema=%s AND table_name=%s AND column_name IN ({placeholders})) = %s AS columns_ok,
+                EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname=%s AND tablename=%s AND position('hnsw' in indexdef) > 0 AND position('embedding' in indexdef) > 0) AS hnsw_ok""",
+            (f"{self.schema}.{self.table}", f"{self.schema}.documents", self.schema, self.table, *required, len(required), self.schema, self.table),
+        )
+        state = rows[0] if rows else {}
+        return all(state.get(key) for key in ("table_exists", "documents_exists", "columns_ok", "hnsw_ok"))
+
+    def _corpus_count(self, cap: int = 1000) -> tuple[int, bool]:
+        where, params = self._scope()
+        qualified = f'"{self.schema}"."{self.table}"'
+        rows = self._query(
+            f"""SELECT count(*) AS count FROM (
+                SELECT 1 FROM {qualified} r
+                JOIN "{self.schema}"."documents" d ON d.target_id = r.target_id AND d.document_id = r.document_id
+                WHERE {where}
+                LIMIT %s
+            ) capped""",
+            (*params, cap + 1),
+        )
+        count = int(rows[0]["count"]) if rows else 0
+        return (min(count, cap), count > cap)
+
     def health(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {"backend": self.kind, "indexVersion": self.version}
         try:
-            required = ("target_id", "target_spu_id", "deleted_at", "embedding_profile_id", "vector_dimensions", "embedding", "source_segments", "source_document_version")
-            placeholders = ",".join("%s" for _ in required)
-            rows = self._query(
-                f"""SELECT
-                    to_regclass(%s) IS NOT NULL AS table_exists,
-                    to_regclass(%s) IS NOT NULL AS documents_exists,
-                    (SELECT count(*) FROM information_schema.columns WHERE table_schema=%s AND table_name=%s AND column_name IN ({placeholders})) = %s AS columns_ok,
-                    EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname=%s AND tablename=%s AND position('hnsw' in indexdef) > 0 AND position('embedding' in indexdef) > 0) AS hnsw_ok""",
-                (f"{self.schema}.{self.table}", f"{self.schema}.documents", self.schema, self.table, *required, len(required), self.schema, self.table),
-            )
-            state = rows[0] if rows else {}
-            if not state.get("table_exists") or not state.get("documents_exists") or not state.get("columns_ok") or not state.get("hnsw_ok"):
-                return {"backend": self.kind, "available": False, "indexVersion": self.version, "reason": "schema_mismatch"}
+            schema_ready = self._schema_ready()
         except Exception as error:
             cause = error.__cause__
             cause_text = str(cause or error).lower()
             auth_failure = getattr(cause, "sqlstate", None) == "28P01" or "password authentication failed" in cause_text or "authentication failed" in cause_text
             reason = "credentials_invalid" if auth_failure else "connection_failed"
-            return {"backend": self.kind, "available": False, "indexVersion": self.version, "reason": reason}
-        return {"backend": self.kind, "available": True, "indexVersion": self.version}
+            return {**payload, "available": False, "connectionAvailable": False, "schemaReady": False, "corpusCount": 0, "corpusCountCapped": False, "dataStatus": "unreachable", "reason": reason}
+        if not schema_ready:
+            return {**payload, "available": False, "connectionAvailable": True, "schemaReady": False, "corpusCount": 0, "corpusCountCapped": False, "dataStatus": "schema_missing", "reason": "schema_mismatch"}
+        try:
+            corpus_count, capped = self._corpus_count()
+        except SchemaMissingError:
+            return {**payload, "available": False, "connectionAvailable": True, "schemaReady": False, "corpusCount": 0, "corpusCountCapped": False, "dataStatus": "schema_missing", "reason": "schema_mismatch"}
+        except Exception:
+            corpus_count, capped = 0, False
+        return {**payload, "available": True, "connectionAvailable": True, "schemaReady": True, "corpusCount": corpus_count, "corpusCountCapped": capped, "dataStatus": "ready" if corpus_count else "empty_corpus"}

@@ -1,12 +1,17 @@
 from __future__ import annotations
+import logging
 import math
 import threading
 import time
 import uuid
 from .answering import AnswerGenerator
+from .config import settings
+from .eval_store import EvaluationRunStore, FileEvaluationRunStore
 from .integrations import LangfuseAdapter, RagasAdapter
-from .models import EvaluationRequest, EvaluationRun
+from .models import EvaluationRequest, EvaluationRun, EvaluationRunSummary, utc_now_iso
 from .pipeline import RetrievalPipeline
+
+logger = logging.getLogger(__name__)
 
 
 DATASETS = {
@@ -28,7 +33,7 @@ def list_datasets() -> list[dict]:
     ]
 
 
-def evaluate(request: EvaluationRequest, pipeline: RetrievalPipeline, run_id: str, answer_generator: AnswerGenerator | None = None, ragas: RagasAdapter | None = None, langfuse: LangfuseAdapter | None = None) -> EvaluationRun:
+def evaluate(request: EvaluationRequest, pipeline: RetrievalPipeline, run_id: str, answer_generator: AnswerGenerator | None = None, ragas: RagasAdapter | None = None, langfuse: LangfuseAdapter | None = None, created_at: str | None = None) -> EvaluationRun:
     dataset = DATASETS.get(request.datasetId)
     if dataset is None:
         raise ValueError(f"unknown dataset: {request.datasetId}")
@@ -86,6 +91,7 @@ def evaluate(request: EvaluationRequest, pipeline: RetrievalPipeline, run_id: st
         datasetId=request.datasetId,
         profileId=request.profileId,
         status="completed",
+        createdAt=created_at or utc_now_iso(),
         providers={"ragas": ragas_status, "langfuse": trace.get("status", "skipped")},
         metrics={"recallAtK": context_recall, "precisionAtK": context_precision, "mrr": sum(r["mrr"] for r in rows) / count, "ndcgAtK": sum(r["ndcgAtK"] for r in rows) / count, "latencyMs": {"p50": percentile(latencies, 50), "p95": percentile(latencies, 95), "p99": percentile(latencies, 99)}, "imageHitRate": sum(r["imageHit"] for r in rows) / count, "tableHitRate": sum(r["tableHit"] for r in rows) / count, "provenanceCompleteness": sum(r["provenanceComplete"] for r in rows) / count},
         ragas=ragas_payload,
@@ -96,13 +102,12 @@ def evaluate(request: EvaluationRequest, pipeline: RetrievalPipeline, run_id: st
 
 
 class EvaluationRunRegistry:
-    def __init__(self, pipeline: RetrievalPipeline, answer_generator: AnswerGenerator | None = None, ragas: RagasAdapter | None = None, langfuse: LangfuseAdapter | None = None):
+    def __init__(self, pipeline: RetrievalPipeline, answer_generator: AnswerGenerator | None = None, ragas: RagasAdapter | None = None, langfuse: LangfuseAdapter | None = None, store: EvaluationRunStore | None = None):
         self.pipeline = pipeline
         self.answer_generator = answer_generator
         self.ragas = ragas
         self.langfuse = langfuse
-        self._runs: dict[str, EvaluationRun] = {}
-        self._lock = threading.Lock()
+        self.store = store or FileEvaluationRunStore(settings.rag_eval_store_dir)
 
     def create(self, request: EvaluationRequest) -> EvaluationRun:
         if request.datasetId not in DATASETS:
@@ -114,31 +119,38 @@ class EvaluationRunRegistry:
             datasetId=request.datasetId,
             profileId=request.profileId,
             status="running",
+            createdAt=utc_now_iso(),
             providers={"ragas": "skipped", "langfuse": "skipped"},
             ragas={"status": "skipped"},
         )
-        with self._lock:
-            self._runs[run.runId] = run
-        threading.Thread(target=self._execute, args=(run.runId, request), daemon=True).start()
+        try:
+            self.store.save(run)
+        except OSError as error:
+            raise RuntimeError("evaluation run store unavailable") from error
+        threading.Thread(target=self._execute, args=(run.runId, request, run.createdAt), daemon=True).start()
         return run.model_copy(deep=True)
 
     def get(self, run_id: str) -> EvaluationRun | None:
-        with self._lock:
-            run = self._runs.get(run_id)
-            return run.model_copy(deep=True) if run else None
+        return self.store.get(run_id)
 
-    def _execute(self, run_id: str, request: EvaluationRequest) -> None:
+    def list_runs(self, limit: int = 50) -> list[EvaluationRunSummary]:
+        return self.store.list(limit)
+
+    def _execute(self, run_id: str, request: EvaluationRequest, created_at: str) -> None:
         try:
-            result = evaluate(request, self.pipeline, run_id, self.answer_generator, self.ragas, self.langfuse)
+            result = evaluate(request, self.pipeline, run_id, self.answer_generator, self.ragas, self.langfuse, created_at)
         except Exception as error:
             result = EvaluationRun(
                 runId=run_id,
                 datasetId=request.datasetId,
                 profileId=request.profileId,
                 status="failed",
+                createdAt=created_at,
                 providers={"ragas": "skipped", "langfuse": "skipped"},
                 ragas={"status": "skipped"},
                 error=str(error),
             )
-        with self._lock:
-            self._runs[run_id] = result
+        try:
+            self.store.save(result)
+        except OSError:
+            logger.exception("failed to persist evaluation run %s", run_id)
