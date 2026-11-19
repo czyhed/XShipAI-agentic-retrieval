@@ -1,5 +1,7 @@
 # Agentic Retrieval
 
+文档导航：[docs/README.md](docs/README.md)。
+
 独立 Python RAG 检索服务。正式检索由 Python 服务端通过只读 PGVector adapter 查询 Chunk Lab 发布的 PostgreSQL/pgvector 数据；默认 CI 连接真实 Chunk Lab PostgreSQL/pgvector，调用方不能提交检索 records 或向量。
 
 ## 启动

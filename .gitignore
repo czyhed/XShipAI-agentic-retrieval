@@ -1,49 +1,43 @@
+# Python environments and caches
 .venv/
 .venv*/
-.pytest_cache/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+
+# Runtime databases, logs, temporary files
 *.log
+*.err
 *.tmp
+*.pid
 *.sqlite
 *.sqlite3
 *.db
 *.dump
 *.backup
 *.bak
-*.pid
-coverage.xml
-.coverage
-.mypy_cache/
-.ruff_cache/
-dist/
-build/
-.env
-.env.*
-!.env.example
-.playwright-cli/
-output/playwright/
 
-# Local credentials, dependencies and generated files
-.env
-.env.*
-!.env.example
-.scratch/
-.codex-runtime/
-.playwright-cli/
-.pytest_cache/
-__pycache__/
-.venv*/
-node_modules/
-dist/
+# Build output and local state
 build/
+dist/
 output/
 artifacts/
 var/
 data/
 .workspace/
 .tmp-workspace/
-*.log
-*.err
+.scratch/
+.codex-runtime/
+node_modules/
 *.tsbuildinfo
-*.pyc
+.playwright-cli/
+output/playwright/
